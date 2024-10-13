@@ -85,7 +85,7 @@ export default function TabbyExtension() {
   };
 
   const autoGroupTabs = () => {
-    // This is a simple grouping by domain. You can implement more sophisticated grouping here.
+    // Grouping by domain.
     chrome.tabs.query({}, (tabs) => {
       const groups: Record<string, number[]> = tabs.reduce<
         Record<string, number[]>
@@ -120,7 +120,7 @@ export default function TabbyExtension() {
           ? a.domain.localeCompare(b.domain)
           : b.domain.localeCompare(a.domain);
       }
-      // For simplicity, we'll use the first tab's id as a proxy for recency
+      // Recency sort
       return sortOrder === 'asc'
         ? (a.tabs[0]?.id ?? 0) - (b.tabs[0]?.id ?? 0)
         : (b.tabs[0]?.id ?? 0) - (a.tabs[0]?.id ?? 0);
