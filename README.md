@@ -11,6 +11,15 @@ AI-powered tab management that boosts your productivity instantly.
 - Quick tab search
 - Tab grouping
 
+
+## Tech Stack
+
+- ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) **TypeScript**: A typed superset of JavaScript that compiles to plain JavaScript.
+- ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) **React**: A JavaScript library for building user interfaces.
+- ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) **Vite**: A fast build tool and development server.
+- ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) **Tailwind CSS**: A utility-first CSS framework for rapid UI development.
+- ![Shadcn](https://img.shields.io/badge/Shadcn-000000?style=for-the-badge&logo=react&logoColor=white) **Shadcn**: A component library for React.
+
 ## Usage
 
 ### Loading the Extension in Chrome
