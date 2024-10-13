@@ -3,7 +3,9 @@
 AI-powered tab management that boosts your productivity instantly.
 
 
-![Tabby Icon](icon.png)
+```markdown
+<img src="icon.png" alt="Tabby Icon" width="200" height="200">
+```
 
 
 ## Features
