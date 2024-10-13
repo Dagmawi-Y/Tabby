@@ -4,5 +4,9 @@
   "icons": {
     "48": "icon.png"
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
 }

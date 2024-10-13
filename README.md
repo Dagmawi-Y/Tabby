@@ -2,6 +2,10 @@
 
 AI-powered tab management that boosts your productivity instantly.
 
+
+![Tabby Icon](icon.png)
+
+
 ## Features
 
 - Intelligent tab organization
