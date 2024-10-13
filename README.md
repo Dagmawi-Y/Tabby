@@ -3,7 +3,7 @@
 AI-powered tab management that boosts your productivity instantly.
 
 
-![Tabby Icon](public/tabby.png)
+<img src="public/tabby.png" alt="Tabby Icon" width="100" height="100" />
 
 
 ## Features
