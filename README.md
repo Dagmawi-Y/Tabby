@@ -1,47 +1,50 @@
-<div style="display: flex; align-items: center;">
-    <img src="public/tabby.png" alt="Tabby Icon" width="100" height="100" />
-    <h1 style="margin-left: 10px;">Tabby</h1>
-</div>
+# React + TypeScript + Vite
 
-AI-powered tab management that boosts your productivity instantly.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Features
+Currently, two official plugins are available:
 
-- Intelligent tab organization
-- Quick tab search
-- Tab grouping
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Usage
+## Expanding the ESLint configuration
 
-### Loading the Extension in Chrome
+If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
 
-1. Download the extension package.
-2. Open Chrome and go to `chrome://extensions/`.
-3. Enable "Developer mode" using the toggle switch.
-4. Click "Load unpacked" and select the extension package folder.
-5. The extension should now be loaded and ready to use.
+- Configure the top-level `parserOptions` property like this:
 
-## Contributing
+```js
+export default tseslint.config({
+  languageOptions: {
+    // other options...
+    parserOptions: {
+      project: ['./tsconfig.node.json', './tsconfig.app.json'],
+      tsconfigRootDir: import.meta.dirname,
+    },
+  },
+})
+```
 
-1. Fork the repository.
-2. Create a new branch:
-    ```sh
-    git checkout -b feature-branch
-    ```
-3. Make your changes and commit them:
-    ```sh
-    git commit -m "Description of changes"
-    ```
-4. Push to the branch:
-    ```sh
-    git push origin feature-branch
-    ```
-5. Open a pull request.
+- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
+- Optionally add `...tseslint.configs.stylisticTypeChecked`
+- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
 
-## License
+```js
+// eslint.config.js
+import react from 'eslint-plugin-react'
 
-This project is licensed under the MIT License.
-
-## Author
-
-- Dagmawi Y.
+export default tseslint.config({
+  // Set the react version
+  settings: { react: { version: '18.3' } },
+  plugins: {
+    // Add the react plugin
+    react,
+  },
+  rules: {
+    // other rules...
+    // Enable its recommended rules
+    ...react.configs.recommended.rules,
+    ...react.configs['jsx-runtime'].rules,
+  },
+})
+```
