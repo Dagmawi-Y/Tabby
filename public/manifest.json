@@ -9,6 +9,6 @@
   },
   "host_permissions": ["http://*/*", "https://*/*"],
   "icons": {
-    "32": "icon.png"
+    "32": "tabby.png"
   }
 }
