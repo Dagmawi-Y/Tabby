@@ -1,10 +1,9 @@
-# Tabby
+<div style="display: flex; align-items: center;">
+    <img src="public/tabby.png" alt="Tabby Icon" width="100" height="100" />
+    <h1 style="margin-left: 10px;">Tabby</h1>
+</div>
 
 AI-powered tab management that boosts your productivity instantly.
-
-
-<img src="public/tabby.png" alt="Tabby Icon" width="100" height="100" />
-
 
 ## Features
 
