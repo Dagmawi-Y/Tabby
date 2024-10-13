@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Tabby",
+  "version": "1.0.0",
+  "description": "Tabby is a browser extension that helps you manage your tabs.",
+  "permissions": ["tabs", "storage", "scripting"],
+  "action": {
+    "default_popup": "index.html"
+  },
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "icons": {
+    "32": "icon.png"
+  }
+}
