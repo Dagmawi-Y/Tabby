@@ -25,11 +25,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     );
 
-    return true; // Indicates that the response is sent asynchronously
+    return true;
   } else if (request.action === 'showShareAlert') {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'path/to/your/icon.png',
+      iconUrl: './tabby.png',
       title: 'Tabby Share',
       message: 'Share functionality coming soon!',
     });
@@ -53,7 +53,7 @@ function showCloseTabsPrompt() {
   chrome.notifications.create(
     {
       type: 'basic',
-      iconUrl: 'path/to/your/icon.png',
+      iconUrl: './tabby.png',
       title: 'Tabs Saved',
       message: 'Your tabs have been saved. Do you want to close all tabs?',
       buttons: [{ title: 'Yes' }, { title: 'No' }],
@@ -75,10 +75,13 @@ function showCloseTabsPrompt() {
 }
 
 function closeAllTabsAndOpenNew() {
-  chrome.tabs.query({}, (tabs) => {
-    const tabIds = tabs.map((tab) => tab.id).filter((id) => id !== undefined);
-    chrome.tabs.remove(tabIds, () => {
-      chrome.tabs.create({});
+  chrome.tabs.create({ url: 'chrome://newtab' }, (newTab) => {
+    chrome.tabs.query({}, (tabs) => {
+      const tabIdsToClose = tabs
+        .filter((tab) => tab.id !== newTab.id)
+        .map((tab) => tab.id);
+
+      chrome.tabs.remove(tabIdsToClose);
     });
   });
 }
