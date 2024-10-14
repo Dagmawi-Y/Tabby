@@ -7,15 +7,12 @@ import {
   PawPrint,
   Trash2,
   LayersIcon,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
+import { Save, Upload, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 export default function TabbyExtension() {
   const [tabGroups, setTabGroups] = useState<
@@ -29,7 +26,6 @@ export default function TabbyExtension() {
 
   useEffect(() => {
     loadTabs();
-    // listen for tab updates
     chrome.tabs.onUpdated.addListener(loadTabs);
     chrome.tabs.onRemoved.addListener(loadTabs);
     return () => {
@@ -87,23 +83,32 @@ export default function TabbyExtension() {
   };
 
   const autoGroupTabs = () => {
-    // grouping by domain.
     chrome.tabs.query({}, (tabs) => {
-      const groups: Record<string, number[]> = tabs.reduce<
-        Record<string, number[]>
-      >((acc, tab) => {
-        const domain = tab.url ? new URL(tab.url).hostname : 'unknown';
-        if (!acc[domain]) acc[domain] = [];
-        if (tab.id !== undefined) {
-          acc[domain].push(tab.id);
-        }
-        return acc;
-      }, {});
+      const groups: Record<string, number[]> = tabs.reduce(
+        (acc: Record<string, number[]>, tab) => {
+          const domain = tab.url ? new URL(tab.url).hostname : 'unknown';
+          if (!acc[domain]) acc[domain] = [];
+          if (tab.id !== undefined) {
+            acc[domain].push(tab.id);
+          }
+          return acc;
+        },
+        {}
+      );
 
       Object.values(groups).forEach((groupTabs) => {
         chrome.tabs.group({ tabIds: groupTabs }, () => loadTabs());
       });
     });
+  };
+
+  const toggleSort = (newSortBy: string) => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('asc');
+    }
   };
 
   const filteredAndSortedGroups = tabGroups
@@ -121,23 +126,21 @@ export default function TabbyExtension() {
         return sortOrder === 'asc'
           ? a.domain.localeCompare(b.domain)
           : b.domain.localeCompare(a.domain);
+      } else if (sortBy === 'recency') {
+        return sortOrder === 'asc'
+          ? (a.tabs[0]?.id ?? 0) - (b.tabs[0]?.id ?? 0)
+          : (b.tabs[0]?.id ?? 0) - (a.tabs[0]?.id ?? 0);
       }
-      // recency sort
-      return sortOrder === 'asc'
-        ? (a.tabs[0]?.id ?? 0) - (b.tabs[0]?.id ?? 0)
-        : (b.tabs[0]?.id ?? 0) - (a.tabs[0]?.id ?? 0);
+      // TODO: sort by relevance
+      return 0;
     });
 
   const getMainDomainTitle = (url: string, title: string): string => {
     const hostname = new URL(url).hostname;
     const parts = hostname.split('.');
-
-    // remove common prefixes and suffixes
     const cleanParts = parts.filter(
       (part) => !['www', 'com', 'org', 'net', 'edu'].includes(part)
     );
-
-    // try to extract a meaningful name from the title
     const titleWords = title.split(/[\s-]+/);
     const potentialNames = titleWords.filter(
       (word) =>
@@ -146,26 +149,75 @@ export default function TabbyExtension() {
           word.toLowerCase()
         )
     );
-
-    // check if any part of the hostname appears in the title
     for (const part of cleanParts) {
       const matchingName = potentialNames.find((name) =>
         name.toLowerCase().includes(part.toLowerCase())
       );
       if (matchingName) return matchingName;
     }
-
-    // if no match found in title, use the most specific part of the hostname
     if (cleanParts.length > 0) {
       return cleanParts[0].charAt(0).toUpperCase() + cleanParts[0].slice(1);
     }
-
-    // fallback to the full hostname if all else fails
     return hostname;
   };
 
+  const saveTabList = () => {
+    const tabList = tabGroups.map((group) => ({
+      domain: group.domain,
+      tabs: group.tabs.map((tab) => ({ url: tab.url, title: tab.title })),
+    }));
+
+    chrome.runtime.sendMessage(
+      { action: 'saveTabList', tabList },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else if (!response.success) {
+          console.error('Error saving tabs:', response.error);
+        }
+      }
+    );
+  };
+
+  const importTabList = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          try {
+            const importedTabList = JSON.parse(content);
+            // Process and open imported tabs
+            importedTabList.forEach(
+              (group: {
+                domain: string;
+                tabs: { url: string; title: string }[];
+              }) => {
+                group.tabs.forEach((tab) => {
+                  chrome.tabs.create({ url: tab.url });
+                });
+              }
+            );
+          } catch (error) {
+            console.error('Error parsing imported file:', error);
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  const shareTabList = () => {
+    chrome.runtime.sendMessage({ action: 'showShareAlert' });
+  };
+
   return (
-    <div className="w-96 h-[600px] bg-gradient-to-br from-[#CACF85] to-[#8CBA80] flex flex-col p-4 shadow-lg relative overflow-hidden">
+    <div className="w-96 h-[600px] bg-primary flex flex-col p-4 shadow-lg relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-5">
         <div className="absolute top-4 left-4 transform -rotate-12">
           <PawPrint className="text-orange-400" size={64} />
@@ -175,9 +227,24 @@ export default function TabbyExtension() {
         </div>
       </div>
 
-      <div className=" mb-4 flex items-center">
-        <img src="../tabby.png" alt="logo" className="mr-2 w-10 h-10" />
-        <h1 className="text-2xl font-bold text-secondary-foreground">Tabby</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center">
+          <img src="../tabby.png" alt="logo" className="mr-2 w-10 h-10" />
+          <h1 className="text-2xl font-bold text-secondary-foreground">
+            Tabby
+          </h1>
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={saveTabList} className="p-2">
+            <Save size={18} />
+          </Button>
+          <Button onClick={importTabList} className="p-2">
+            <Upload size={18} />
+          </Button>
+          <Button onClick={shareTabList} className="p-2">
+            <Share2 size={18} />
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-2 mb-4">
@@ -194,51 +261,62 @@ export default function TabbyExtension() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="whitespace-nowrap bg-white border-orange-200 text-orange-600 hover:bg-orange-50"
-            >
-              Sort by <ChevronDown className="ml-1" size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem
-              onClick={() => {
-                setSortBy('recency');
-                setSortOrder('desc');
-              }}
-            >
-              Recency (Newest)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                setSortBy('recency');
-                setSortOrder('asc');
-              }}
-            >
-              Recency (Oldest)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                setSortBy('alphabet');
-                setSortOrder('asc');
-              }}
-            >
-              Alphabet (A-Z)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                setSortBy('alphabet');
-                setSortOrder('desc');
-              }}
-            >
-              Alphabet (Z-A)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
+
+      <div className="flex justify-start mb-4 gap-3">
+        <Button
+          className={`px-2 py-0.5 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none ${
+            sortBy === 'alphabet' ? 'bg-orange-200' : 'bg-white'
+          }`}
+          onClick={() => toggleSort('alphabet')}
+        >
+          A-Z
+          {sortBy === 'alphabet' && (
+            <span className="ml-1">
+              {sortOrder === 'asc' ? (
+                <ArrowUp size={12} />
+              ) : (
+                <ArrowDown size={12} />
+              )}
+            </span>
+          )}
+        </Button>
+        <Button
+          className={`px-2 py-0.5 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none ${
+            sortBy === 'recency' ? 'bg-orange-200' : 'bg-white'
+          }`}
+          onClick={() => toggleSort('recency')}
+        >
+          Time
+          {sortBy === 'recency' && (
+            <span className="ml-1">
+              {sortOrder === 'asc' ? (
+                <ArrowUp size={12} />
+              ) : (
+                <ArrowDown size={12} />
+              )}
+            </span>
+          )}
+        </Button>
+        <Button
+          className={`px-2 py-1 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none ${
+            sortBy === 'relevance' ? 'bg-orange-200' : 'bg-white'
+          }`}
+          onClick={() => toggleSort('relevance')}
+        >
+          Relevance
+          {sortBy === 'relevance' && (
+            <span className="ml-1">
+              {sortOrder === 'asc' ? (
+                <ArrowUp size={12} />
+              ) : (
+                <ArrowDown size={12} />
+              )}
+            </span>
+          )}
+        </Button>
+      </div>
+
       <div className="flex-grow overflow-y-auto space-y-2 pr-2">
         {searchTerm ? (
           <div className="space-y-2">
@@ -271,20 +349,28 @@ export default function TabbyExtension() {
           filteredAndSortedGroups.map((group) => (
             <div
               key={group.domain}
-              className="bg-white rounded-md shadow-md overflow-hidden"
+              className="bg-white rounded-lg shadow-md overflow-hidden"
             >
               <button
-                className="w-full px-4 py-2 text-left font-medium flex justify-between items-center hover:bg-orange-50 transition-colors"
+                className="w-full px-4 py-2 text-left font-medium flex justify-between items-center bg-secondary transition-colors border-none focus:outline-none"
                 onClick={() => toggleGroup(group.domain)}
               >
-                <span className="text-orange-600">{group.domain}</span>
+                <span className="text-secondary-foreground">
+                  {group.domain}
+                </span>
                 {expandedGroups.includes(group.domain) ? (
-                  <ChevronUp size={18} className="text-orange-400" />
+                  <ChevronUp size={18} className=" text-orange-500" />
                 ) : (
-                  <ChevronDown size={18} className="text-orange-400" />
+                  <ChevronDown size={18} className="text-orange-500" />
                 )}
               </button>
-              {expandedGroups.includes(group.domain) && (
+              <div
+                className={`transition-all duration-300 ease-in-out ${
+                  expandedGroups.includes(group.domain)
+                    ? 'max-h-[1000px] opacity-100'
+                    : 'max-h-0 opacity-0'
+                }`}
+              >
                 <div className="px-4 py-2 space-y-2">
                   {group.tabs.map((tab) => (
                     <div
@@ -302,7 +388,7 @@ export default function TabbyExtension() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity border-none focus:outline-none"
                         onClick={() => closeTab(tab.id)}
                       >
                         <Trash2 size={14} />
@@ -310,30 +396,29 @@ export default function TabbyExtension() {
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
           ))
         )}
       </div>
       <div className="relative">
         <Button
-          className="absolute bottom-4 right-4 rounded-full w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white shadow-lg transform transition-transform hover:scale-110"
+          className="absolute bottom-4 right-4 rounded-full w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white shadow-xl transform transition-transform hover:scale-110 border-none focus:outline-none"
           onClick={() => setIsAIMenuOpen(!isAIMenuOpen)}
         >
           <Cat size={28} />
         </Button>
+
         {isAIMenuOpen && (
-          <div className="absolute bottom-20 right-4 bg-white rounded-md shadow-lg p-2 space-y-2 animate-fadeIn">
+          <div className="absolute bottom-20 right-4 bg-secondary rounded-md shadow-2xl p-2 space-y-2">
             <Button
-              variant="ghost"
-              className="w-full justify-start text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+              className="w-full justify-start text-red-500 bg-white hover:bg-orange-50 hover:text-orange-700 "
               onClick={purgeTabs}
             >
               <Trash2 className="mr-2 h-4 w-4" /> Purrge Tabs
             </Button>
             <Button
-              variant="ghost"
-              className="w-full justify-start text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+              className="w-full justify-start text-white hover:bg-orange-50 hover:text-orange-700 bg-primary"
               onClick={autoGroupTabs}
             >
               <LayersIcon className="mr-2 h-4 w-4" /> Meow-nage Groups

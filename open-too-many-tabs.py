@@ -47,7 +47,7 @@ safe_sites = [
 ]
 
 # shuffle and select random links
-random_sites = random.sample(safe_sites, 30)
+random_sites = random.sample(safe_sites, 33)
 
 # open each site in a new tab
 for site in random_sites:

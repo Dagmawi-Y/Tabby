@@ -3,12 +3,15 @@
   "name": "Tabby",
   "version": "1.0.0",
   "description": "Meow-nage your tab clutter.",
-  "permissions": ["tabs", "storage", "scripting"],
+  "permissions": ["tabs", "storage", "scripting", "downloads", "notifications"],
   "action": {
     "default_popup": "index.html"
   },
   "host_permissions": ["http://*/*", "https://*/*"],
   "icons": {
     "32": "tabby.png"
+  },
+  "background": {
+    "service_worker": "background.js"
   }
 }
