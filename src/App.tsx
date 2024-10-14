@@ -40,17 +40,19 @@ export default function TabbyExtension() {
 
   const loadTabs = () => {
     chrome.tabs.query({}, (tabs) => {
-      const groups: Record<string, chrome.tabs.Tab[]> = tabs.reduce(
-        (acc: Record<string, chrome.tabs.Tab[]>, tab) => {
-          const domain = tab.url ? new URL(tab.url).hostname : 'unknown';
-          if (!acc[domain]) acc[domain] = [];
-          acc[domain].push(tab);
+      const groups: Record<string, chrome.tabs.Tab[]> = tabs
+        .filter((tab) => tab.title !== 'New Tab' && tab.url)
+        .reduce((acc: Record<string, chrome.tabs.Tab[]>, tab) => {
+          const groupTitle = getMainDomainTitle(tab.url!, tab.title!);
+          if (!acc[groupTitle]) acc[groupTitle] = [];
+          acc[groupTitle].push(tab);
           return acc;
-        },
-        {}
-      );
+        }, {});
       setTabGroups(
-        Object.entries(groups).map(([domain, tabs]) => ({ domain, tabs }))
+        Object.entries(groups).map(([groupTitle, tabs]) => ({
+          domain: groupTitle,
+          tabs,
+        }))
       );
     });
   };
@@ -126,8 +128,44 @@ export default function TabbyExtension() {
         : (b.tabs[0]?.id ?? 0) - (a.tabs[0]?.id ?? 0);
     });
 
+  const getMainDomainTitle = (url: string, title: string): string => {
+    const hostname = new URL(url).hostname;
+    const parts = hostname.split('.');
+
+    // Remove common prefixes and suffixes
+    const cleanParts = parts.filter(
+      (part) => !['www', 'com', 'org', 'net', 'edu'].includes(part)
+    );
+
+    // Try to extract a meaningful name from the title
+    const titleWords = title.split(/[\s-]+/);
+    const potentialNames = titleWords.filter(
+      (word) =>
+        word.length > 1 &&
+        !['the', 'and', 'or', 'of', 'in', 'on', 'at', 'to'].includes(
+          word.toLowerCase()
+        )
+    );
+
+    // Check if any part of the hostname appears in the title
+    for (const part of cleanParts) {
+      const matchingName = potentialNames.find((name) =>
+        name.toLowerCase().includes(part.toLowerCase())
+      );
+      if (matchingName) return matchingName;
+    }
+
+    // If no match found in title, use the most specific part of the hostname
+    if (cleanParts.length > 0) {
+      return cleanParts[0].charAt(0).toUpperCase() + cleanParts[0].slice(1);
+    }
+
+    // Fallback to the full hostname if all else fails
+    return hostname;
+  };
+
   return (
-    <div className="w-96 h-[600px] bg-gradient-to-br from-amber-100 to-orange-100 flex flex-col p-4 rounded-lg shadow-lg relative overflow-hidden">
+    <div className="w-96 h-[600px] bg-gradient-to-br from-[#CACF85] to-[#8CBA80] flex flex-col p-4 shadow-lg relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-5">
         <div className="absolute top-4 left-4 transform -rotate-12">
           <PawPrint className="text-orange-400" size={64} />
@@ -137,9 +175,10 @@ export default function TabbyExtension() {
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold text-orange-600 mb-4 flex items-center">
-        <Cat className="mr-2" /> Tabby
-      </h1>
+      <div className=" mb-4 flex items-center">
+        <img src="../tabby.png" alt="logo" className="mr-2 w-10 h-10" />
+        <h1 className="text-2xl font-bold text-primary">Tabby</h1>
+      </div>
 
       <div className="flex items-center space-x-2 mb-4">
         <div className="relative flex-grow">
@@ -200,55 +239,82 @@ export default function TabbyExtension() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
       <div className="flex-grow overflow-y-auto space-y-2 pr-2">
-        {filteredAndSortedGroups.map((group) => (
-          <div
-            key={group.domain}
-            className="bg-white rounded-md shadow-md overflow-hidden"
-          >
-            <button
-              className="w-full px-4 py-2 text-left font-medium flex justify-between items-center hover:bg-orange-50 transition-colors"
-              onClick={() => toggleGroup(group.domain)}
-            >
-              <span className="text-orange-600">{group.domain}</span>
-              {expandedGroups.includes(group.domain) ? (
-                <ChevronUp size={18} className="text-orange-400" />
-              ) : (
-                <ChevronDown size={18} className="text-orange-400" />
-              )}
-            </button>
-            {expandedGroups.includes(group.domain) && (
-              <div className="px-4 py-2 space-y-2">
-                {group.tabs.map((tab) => (
-                  <div
-                    key={tab.id}
-                    className="flex items-center space-x-2 group"
+        {searchTerm ? (
+          <div className="space-y-2">
+            {filteredAndSortedGroups.flatMap((group) =>
+              group.tabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className="bg-white rounded-md shadow-md p-2 flex items-center space-x-2 group"
+                >
+                  <img src={tab.favIconUrl} alt="" className="w-4 h-4" />
+                  <span
+                    className="text-sm truncate text-gray-600 group-hover:text-orange-600 transition-colors cursor-pointer flex-grow"
+                    onClick={() => switchToTab(tab.id)}
                   >
-                    <PawPrint className="w-4 h-4 text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <img src={tab.favIconUrl} alt="" className="w-4 h-4" />
-                    <span
-                      className="text-sm truncate text-gray-600 group-hover:text-orange-600 transition-colors cursor-pointer flex-grow"
-                      onClick={() => switchToTab(tab.id)}
-                    >
-                      {tab.title}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => closeTab(tab.id)}
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+                    {tab.title}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => closeTab(tab.id)}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              ))
             )}
           </div>
-        ))}
+        ) : (
+          filteredAndSortedGroups.map((group) => (
+            <div
+              key={group.domain}
+              className="bg-white rounded-md shadow-md overflow-hidden"
+            >
+              <button
+                className="w-full px-4 py-2 text-left font-medium flex justify-between items-center hover:bg-orange-50 transition-colors"
+                onClick={() => toggleGroup(group.domain)}
+              >
+                <span className="text-orange-600">{group.domain}</span>
+                {expandedGroups.includes(group.domain) ? (
+                  <ChevronUp size={18} className="text-orange-400" />
+                ) : (
+                  <ChevronDown size={18} className="text-orange-400" />
+                )}
+              </button>
+              {expandedGroups.includes(group.domain) && (
+                <div className="px-4 py-2 space-y-2">
+                  {group.tabs.map((tab) => (
+                    <div
+                      key={tab.id}
+                      className="flex items-center space-x-2 group"
+                    >
+                      <PawPrint className="w-4 h-4 text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <img src={tab.favIconUrl} alt="" className="w-4 h-4" />
+                      <span
+                        className="text-sm truncate text-gray-600 group-hover:text-orange-600 transition-colors cursor-pointer flex-grow"
+                        onClick={() => switchToTab(tab.id)}
+                      >
+                        {tab.title}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => closeTab(tab.id)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
-
       <div className="relative">
         <Button
           className="absolute bottom-4 right-4 rounded-full w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white shadow-lg transform transition-transform hover:scale-110"
