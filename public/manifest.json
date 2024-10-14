@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tabby",
   "version": "1.0.0",
-  "description": "Tabby is a browser extension that helps you manage your tabs.",
+  "description": "Meow-nage your tab clutter.",
   "permissions": ["tabs", "storage", "scripting"],
   "action": {
     "default_popup": "index.html"

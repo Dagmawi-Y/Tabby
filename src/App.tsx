@@ -29,7 +29,7 @@ export default function TabbyExtension() {
 
   useEffect(() => {
     loadTabs();
-    // Listen for tab updates
+    // listen for tab updates
     chrome.tabs.onUpdated.addListener(loadTabs);
     chrome.tabs.onRemoved.addListener(loadTabs);
     return () => {
@@ -87,7 +87,7 @@ export default function TabbyExtension() {
   };
 
   const autoGroupTabs = () => {
-    // Grouping by domain.
+    // grouping by domain.
     chrome.tabs.query({}, (tabs) => {
       const groups: Record<string, number[]> = tabs.reduce<
         Record<string, number[]>
@@ -122,7 +122,7 @@ export default function TabbyExtension() {
           ? a.domain.localeCompare(b.domain)
           : b.domain.localeCompare(a.domain);
       }
-      // Recency sort
+      // recency sort
       return sortOrder === 'asc'
         ? (a.tabs[0]?.id ?? 0) - (b.tabs[0]?.id ?? 0)
         : (b.tabs[0]?.id ?? 0) - (a.tabs[0]?.id ?? 0);
@@ -132,12 +132,12 @@ export default function TabbyExtension() {
     const hostname = new URL(url).hostname;
     const parts = hostname.split('.');
 
-    // Remove common prefixes and suffixes
+    // remove common prefixes and suffixes
     const cleanParts = parts.filter(
       (part) => !['www', 'com', 'org', 'net', 'edu'].includes(part)
     );
 
-    // Try to extract a meaningful name from the title
+    // try to extract a meaningful name from the title
     const titleWords = title.split(/[\s-]+/);
     const potentialNames = titleWords.filter(
       (word) =>
@@ -147,7 +147,7 @@ export default function TabbyExtension() {
         )
     );
 
-    // Check if any part of the hostname appears in the title
+    // check if any part of the hostname appears in the title
     for (const part of cleanParts) {
       const matchingName = potentialNames.find((name) =>
         name.toLowerCase().includes(part.toLowerCase())
@@ -155,12 +155,12 @@ export default function TabbyExtension() {
       if (matchingName) return matchingName;
     }
 
-    // If no match found in title, use the most specific part of the hostname
+    // if no match found in title, use the most specific part of the hostname
     if (cleanParts.length > 0) {
       return cleanParts[0].charAt(0).toUpperCase() + cleanParts[0].slice(1);
     }
 
-    // Fallback to the full hostname if all else fails
+    // fallback to the full hostname if all else fails
     return hostname;
   };
 
@@ -177,7 +177,7 @@ export default function TabbyExtension() {
 
       <div className=" mb-4 flex items-center">
         <img src="../tabby.png" alt="logo" className="mr-2 w-10 h-10" />
-        <h1 className="text-2xl font-bold text-primary">Tabby</h1>
+        <h1 className="text-2xl font-bold text-secondary-foreground">Tabby</h1>
       </div>
 
       <div className="flex items-center space-x-2 mb-4">
