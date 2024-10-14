@@ -3,6 +3,8 @@
     <h1 style="margin-left: 10px;">Tabby</h1>
 </div>
 
+Meow-nage your tabs.
+
 AI-powered tab management that boosts your productivity instantly.
 
 ## Features
