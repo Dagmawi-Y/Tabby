@@ -94,7 +94,6 @@ export default function TabbyExtension() {
     chrome.runtime.sendMessage({ action: 'autoGroupTabs' }, (response) => {
       if (response.success) {
         console.log('Auto-grouping initiated');
-        // You might want to add a slight delay before reloading the tabs
         setTimeout(() => {
           loadTabs();
         }, 1000);
