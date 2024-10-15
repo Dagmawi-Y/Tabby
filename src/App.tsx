@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Search,
   ChevronDown,
@@ -24,6 +24,9 @@ export default function TabbyExtension() {
   const [sortBy, setSortBy] = useState('recency');
   const [sortOrder, setSortOrder] = useState('desc');
 
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const aiMenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadTabs();
     chrome.tabs.onUpdated.addListener(loadTabs);
@@ -44,12 +47,17 @@ export default function TabbyExtension() {
           acc[groupTitle].push(tab);
           return acc;
         }, {});
+
+      const allDomains = Object.keys(groups);
+
       setTabGroups(
         Object.entries(groups).map(([groupTitle, tabs]) => ({
           domain: groupTitle,
           tabs,
         }))
       );
+
+      setExpandedGroups(allDomains);
     });
   };
 
@@ -83,22 +91,14 @@ export default function TabbyExtension() {
   };
 
   const autoGroupTabs = () => {
-    chrome.tabs.query({}, (tabs) => {
-      const groups: Record<string, number[]> = tabs.reduce(
-        (acc: Record<string, number[]>, tab) => {
-          const domain = tab.url ? new URL(tab.url).hostname : 'unknown';
-          if (!acc[domain]) acc[domain] = [];
-          if (tab.id !== undefined) {
-            acc[domain].push(tab.id);
-          }
-          return acc;
-        },
-        {}
-      );
-
-      Object.values(groups).forEach((groupTabs) => {
-        chrome.tabs.group({ tabIds: groupTabs }, () => loadTabs());
-      });
+    chrome.runtime.sendMessage({ action: 'autoGroupTabs' }, (response) => {
+      if (response.success) {
+        console.log('Auto-grouping initiated');
+        // You might want to add a slight delay before reloading the tabs
+        setTimeout(() => {
+          loadTabs();
+        }, 1000);
+      }
     });
   };
 
@@ -191,7 +191,7 @@ export default function TabbyExtension() {
           const content = e.target?.result as string;
           try {
             const importedTabList = JSON.parse(content);
-            // Process and open imported tabs
+            // process and open imported tabs
             importedTabList.forEach(
               (group: {
                 domain: string;
@@ -216,8 +216,42 @@ export default function TabbyExtension() {
     chrome.runtime.sendMessage({ action: 'showShareAlert' });
   };
 
+  const expandAllGroups = () => {
+    const allDomains = tabGroups.map((group) => group.domain);
+    setExpandedGroups(allDomains);
+  };
+
+  const collapseAllGroups = () => {
+    setExpandedGroups([]);
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        aiMenuRef.current &&
+        !aiMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsAIMenuOpen(false);
+      }
+    };
+
+    if (isAIMenuOpen) {
+      document.addEventListener('click', handleOutsideClick);
+    } else {
+      document.removeEventListener('click', handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isAIMenuOpen]);
+
   return (
-    <div className="w-96 h-[600px] bg-primary flex flex-col p-4 shadow-lg relative overflow-hidden">
+    <div
+      className={`w-96 h-[600px] bg-primary flex flex-col p-4 shadow-lg relative overflow-hidden ${
+        isAIMenuOpen ? 'backdrop-filter backdrop-blur-sm' : ''
+      }`}
+    >
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-5">
         <div className="absolute top-4 left-4 transform -rotate-12">
           <PawPrint className="text-orange-400" size={64} />
@@ -234,16 +268,55 @@ export default function TabbyExtension() {
             Tabby
           </h1>
         </div>
+
         <div className="flex space-x-2">
-          <Button onClick={saveTabList} className="p-2">
-            <Save size={18} />
-          </Button>
-          <Button onClick={importTabList} className="p-2">
-            <Upload size={18} />
-          </Button>
-          <Button onClick={shareTabList} className="p-2">
-            <Share2 size={18} />
-          </Button>
+          <div className="relative">
+            <Button
+              onClick={saveTabList}
+              className="p-2"
+              onMouseEnter={() => setHoveredButton('save')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <Save size={18} />
+            </Button>
+            {hoveredButton === 'save' && (
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 p-1 bg-gray-700 text-white text-xs rounded shadow-lg z-50 w-16 text-center">
+                Save Tab List
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <Button
+              onClick={importTabList}
+              className="p-2"
+              onMouseEnter={() => setHoveredButton('import')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <Upload size={18} />
+            </Button>
+            {hoveredButton === 'import' && (
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 p-1 bg-gray-700 text-white text-xs rounded shadow-lg z-50 w-16 text-center">
+                Import Tab List
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <Button
+              onClick={shareTabList}
+              className="p-2"
+              onMouseEnter={() => setHoveredButton('share')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <Share2 size={18} />
+            </Button>
+            {hoveredButton === 'share' && (
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 p-1 bg-gray-700 text-white text-xs rounded shadow-lg z-50 w-16 text-center">
+                Share Tab List
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -263,26 +336,24 @@ export default function TabbyExtension() {
         </div>
       </div>
 
-      <div className="flex justify-start mb-4 gap-3">
+      <div className=" flex flex-row gap-2 justify-start mb-2">
         <Button
-          className={`px-2 py-0.5 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none ${
-            sortBy === 'alphabet' ? 'bg-orange-200' : 'bg-white'
-          }`}
-          onClick={() => toggleSort('alphabet')}
+          className={`px-1 py-0.5 text-xs bg-gradient-to-br border-none outline-none focus:outline-none`}
+          onClick={expandAllGroups}
         >
-          A-Z
-          {sortBy === 'alphabet' && (
-            <span className="ml-1">
-              {sortOrder === 'asc' ? (
-                <ArrowUp size={12} />
-              ) : (
-                <ArrowDown size={12} />
-              )}
-            </span>
-          )}
+          Expand All
         </Button>
         <Button
-          className={`px-2 py-0.5 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none ${
+          className={`px-1 py-0.5 text-xs bg-gradient-to-br border-none outline-none focus:outline-none`}
+          onClick={collapseAllGroups}
+        >
+          Collapse All
+        </Button>
+      </div>
+
+      <div className="flex justify-start mb-2 gap-3 w-fit">
+        <Button
+          className={`px-2 py-0.5 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none focus:outline-none ${
             sortBy === 'recency' ? 'bg-orange-200' : 'bg-white'
           }`}
           onClick={() => toggleSort('recency')}
@@ -299,7 +370,24 @@ export default function TabbyExtension() {
           )}
         </Button>
         <Button
-          className={`px-2 py-1 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none ${
+          className={`px-2 py-0.5 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none focus:outline-none ${
+            sortBy === 'alphabet' ? 'bg-orange-200' : 'bg-white'
+          }`}
+          onClick={() => toggleSort('alphabet')}
+        >
+          A-Z
+          {sortBy === 'alphabet' && (
+            <span className="ml-1">
+              {sortOrder === 'asc' ? (
+                <ArrowUp size={12} />
+              ) : (
+                <ArrowDown size={12} />
+              )}
+            </span>
+          )}
+        </Button>
+        <Button
+          className={`px-2 py-1 text-xs bg-gradient-to-br from-orange-300 to-red-400 hover:from-orange-500 hover:to-red-600 border-none outline-none focus:outline-none ${
             sortBy === 'relevance' ? 'bg-orange-200' : 'bg-white'
           }`}
           onClick={() => toggleSort('relevance')}
@@ -317,14 +405,21 @@ export default function TabbyExtension() {
         </Button>
       </div>
 
-      <div className="flex-grow overflow-y-auto space-y-2 pr-2">
-        {searchTerm ? (
+      <div className="flex-grow overflow-y-auto space-y-2 pr-2 scrollbar-hide">
+        {tabGroups.length === 0 ? (
+          <div className="flex justify-center items-center h-full">
+            <h2 className="text-xl text-secondary-foreground font-bold bg-clip-text hover:scale-105 transition-transform text-center">
+              No tabs opened. <br /> <br />
+              Enjoy The Silence!
+            </h2>
+          </div>
+        ) : searchTerm ? (
           <div className="space-y-2">
             {filteredAndSortedGroups.flatMap((group) =>
               group.tabs.map((tab) => (
                 <div
                   key={tab.id}
-                  className="bg-white rounded-md shadow-md p-2 flex items-center space-x-2 group"
+                  className=" rounded-md shadow-md p-2 flex items-center space-x-2 group"
                 >
                   <img src={tab.favIconUrl} alt="" className="w-4 h-4" />
                   <span
@@ -339,7 +434,7 @@ export default function TabbyExtension() {
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={() => closeTab(tab.id)}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={14} className=" bg-primary" />
                   </Button>
                 </div>
               ))
@@ -359,9 +454,12 @@ export default function TabbyExtension() {
                   {group.domain}
                 </span>
                 {expandedGroups.includes(group.domain) ? (
-                  <ChevronUp size={18} className=" text-orange-500" />
+                  <ChevronUp size={18} className=" text-secondary-foreground" />
                 ) : (
-                  <ChevronDown size={18} className="text-orange-500" />
+                  <ChevronDown
+                    size={18}
+                    className="text-secondary-foreground"
+                  />
                 )}
               </button>
               <div
@@ -375,9 +473,9 @@ export default function TabbyExtension() {
                   {group.tabs.map((tab) => (
                     <div
                       key={tab.id}
-                      className="flex items-center space-x-2 group"
+                      className="flex items-center space-x-2 group rounded-md bg-primary py-0.5 px-1"
                     >
-                      <PawPrint className="w-4 h-4 text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {/* <PawPrint className="w-4 h-4 text-orange-300 opacity-0 group-hover:opacity-100 transition-opacity" /> */}
                       <img src={tab.favIconUrl} alt="" className="w-4 h-4" />
                       <span
                         className="text-sm truncate text-gray-600 group-hover:text-orange-600 transition-colors cursor-pointer flex-grow"
@@ -401,7 +499,7 @@ export default function TabbyExtension() {
           ))
         )}
       </div>
-      <div className="relative">
+      <div className="relative z-50" ref={aiMenuRef}>
         <Button
           className="absolute bottom-4 right-4 rounded-full w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white shadow-xl transform transition-transform hover:scale-110 border-none focus:outline-none"
           onClick={() => setIsAIMenuOpen(!isAIMenuOpen)}
@@ -410,9 +508,9 @@ export default function TabbyExtension() {
         </Button>
 
         {isAIMenuOpen && (
-          <div className="absolute bottom-20 right-4 bg-secondary rounded-md shadow-2xl p-2 space-y-2">
+          <div className="absolute z-50 bottom-20 right-4 rounded-md shadow-2xl px-4 py-6 space-y-2 bg-white/20 border border-white/30 backdrop-filter backdrop-blur-lg">
             <Button
-              className="w-full justify-start text-red-500 bg-white hover:bg-orange-50 hover:text-orange-700 "
+              className="w-full justify-start text-red-500 bg-white hover:bg-orange-50 hover:text-orange-700"
               onClick={purgeTabs}
             >
               <Trash2 className="mr-2 h-4 w-4" /> Purrge Tabs
@@ -426,6 +524,9 @@ export default function TabbyExtension() {
           </div>
         )}
       </div>
+      {isAIMenuOpen && (
+        <div className="fixed inset-0 bg-black opacity-50 z-40"></div>
+      )}
     </div>
   );
 }

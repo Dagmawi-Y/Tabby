@@ -3,7 +3,14 @@
   "name": "Tabby",
   "version": "1.0.0",
   "description": "Meow-nage your tab clutter.",
-  "permissions": ["tabs", "storage", "scripting", "downloads", "notifications"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "scripting",
+    "downloads",
+    "notifications",
+    "tabGroups"
+  ],
   "action": {
     "default_popup": "index.html"
   },

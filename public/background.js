@@ -35,6 +35,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     sendResponse({ success: true });
     return false;
+  } else if (request.action === 'autoGroupTabs') {
+    autoGroupTabs();
+    sendResponse({ success: true });
+    return false;
   }
 });
 
@@ -72,6 +76,60 @@ function showCloseTabsPrompt() {
       });
     }
   );
+}
+
+function autoGroupTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    const groups = {};
+    tabs.forEach((tab) => {
+      if (tab.title === 'New Tab') return;
+      const domain = tab.url ? new URL(tab.url).hostname : 'unknown';
+      if (!groups[domain]) groups[domain] = [];
+      if (tab.id !== undefined) {
+        groups[domain].push(tab.id);
+      }
+    });
+
+    const sortedDomains = Object.entries(groups).sort(
+      (a, b) => b[1].length - a[1].length
+    );
+
+    let currentIndex = 0;
+    sortedDomains.forEach(([domain, groupTabs]) => {
+      if (groupTabs.length > 1) {
+        const groupName = getDomainName(domain);
+        chrome.tabs.group({ tabIds: groupTabs }, (groupId) => {
+          if (groupId !== undefined) {
+            chrome.tabGroups.update(
+              groupId,
+              { title: groupName, collapsed: true },
+              () => {
+                chrome.tabGroups.move(groupId, { index: currentIndex }, () => {
+                  console.log(
+                    `Group ${groupName} created, collapsed, and moved to index ${currentIndex}`
+                  );
+                  currentIndex += groupTabs.length;
+                });
+              }
+            );
+          }
+        });
+      } else {
+        currentIndex += groupTabs.length;
+      }
+    });
+  });
+}
+
+function getDomainName(domain) {
+  const parts = domain.split('.');
+  if (parts.length > 2) {
+    return (
+      parts[parts.length - 2].charAt(0).toUpperCase() +
+      parts[parts.length - 2].slice(1)
+    );
+  }
+  return domain.charAt(0).toUpperCase() + domain.slice(1);
 }
 
 function closeAllTabsAndOpenNew() {
