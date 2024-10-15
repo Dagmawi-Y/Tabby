@@ -5,7 +5,7 @@
 
 Meow-nage your tabs.
 
-AI-powered tab management that boosts your productivity instantly.
+A powerful tab management that boosts your productivity instantly.
 
 ## Features
 
