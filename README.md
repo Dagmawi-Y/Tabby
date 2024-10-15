@@ -26,11 +26,8 @@ A powerful tab management that boosts your productivity instantly.
 
 ### Loading the Extension in Chrome
 
-1. Download the extension package.
-2. Open Chrome and go to `chrome://extensions/`.
-3. Enable "Developer mode" using the toggle switch.
-4. Click "Load unpacked" and select the extension package folder.
-5. The extension should now be loaded and ready to use.
+1. Download the release.
+2. Install in chrome/edge.
 
 ## Contributing
 
